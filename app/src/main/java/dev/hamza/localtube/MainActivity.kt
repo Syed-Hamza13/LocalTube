@@ -87,6 +87,6 @@ class MainActivity : ComponentActivity() {
         private val URL_IN_TEXT = Regex("https?://\\S+")
 
         fun String.extractUrl(): String? =
-            trimmed().let { text -> if (text.startsWith("http")) text else URL_IN_TEXT.find(text)?.value }
+            trim().let { text -> if (text.startsWith("http")) text else URL_IN_TEXT.find(text)?.value }
     }
 }

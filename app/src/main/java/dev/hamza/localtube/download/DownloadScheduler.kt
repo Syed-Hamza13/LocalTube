@@ -7,6 +7,7 @@ import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
+import dev.hamza.localtube.domain.DownloadArgs
 import dev.hamza.localtube.engine.YtDlpEngine
 import kotlinx.coroutines.flow.first
 import java.util.UUID
@@ -67,19 +68,20 @@ class DownloadScheduler(
 
     /** Re-adopts in-flight work after the process was killed, so the UI is never blind. */
     suspend fun restore() {
-        val states = listOf(WorkInfo.State.ENQUEUED, WorkInfo.State.RUNNING)
         val infos = runCatching {
-            workManager.getWorkInfosByStatusFlow(states).first()
+            workManager.getWorkInfosByTagFlow(TAG).first()
         }.getOrDefault(emptyList())
 
-        infos.filter { it.tags.contains(TAG) }.forEach { info ->
-            val args = JobData.fromInput(info.inputData) ?: return@forEach
-            val status = when (info.state) {
-                WorkInfo.State.RUNNING -> JobStatus.RUNNING
-                else -> JobStatus.QUEUED
+        infos
+            .filter { it.state == WorkInfo.State.ENQUEUED || it.state == WorkInfo.State.RUNNING }
+            .forEach { info ->
+                val args = JobData.fromInput(info.inputData) ?: return@forEach
+                val status = when (info.state) {
+                    WorkInfo.State.RUNNING -> JobStatus.RUNNING
+                    else -> JobStatus.QUEUED
+                }
+                ActiveDownloads.put(info.id.toString(), args, status)
             }
-            ActiveDownloads.put(info.id.toString(), args, status)
-        }
     }
 
     companion object {
