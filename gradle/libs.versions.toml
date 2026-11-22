@@ -15,9 +15,9 @@ navigation = "2.9.8"
 room = "2.8.5"
 work = "2.12.0"
 media3 = "1.11.1"
-# 3.6.x is compiled against compose 1.12 / API 37: it both fails the metadata check itself and pulls
-# foundation above the BOM pin, which then demands AGP 9.1.
-coil = "3.5.0"
+# 3.4.0+/3.5+ are built with Kotlin 2.3/2.4 and also drag compose foundation above the BOM pin, so
+# they break the 2.2.21 toolchain (KSP has no release for Kotlin 2.4.x). This is the last 2.2 line.
+coil = "3.3.0"
 datastore = "1.3.0"
 # Last published version of the classic icon set; only ~40 vectors (icons-extended is NOT used, it is huge).
 materialIconsCore = "1.7.8"
