@@ -121,7 +121,7 @@ app/src/main/java/dev/hamza/localtube/
 ├── di/ServiceLocator.kt       hand-written graph (no Hilt/Koin → ~2 MB and a faster cold start)
 ├── data/
 │   ├── local/                 Room entities, DAOs (Flow queries, FK CASCADE), database
-│   ├── prefs/AppPrefs.kt      DataStore: storage choice, theme, download defaults, onboarded flag
+│   ├── prefs/AppPrefs.kt      DataStore: storage choice, theme, defaults, onboarded flag, job queue
 │   ├── storage/StorageManager staging → rename or MediaStore publish, delete, thumbnails, sizes
 │   └── repository/LibraryRepository  the only door to Room + disk
 ├── engine/
@@ -131,7 +131,7 @@ app/src/main/java/dev/hamza/localtube/
 │   ├── DownloadScheduler.kt   WorkManager enqueue/cancel/retry/restore
 │   ├── DownloadWorker.kt      CoroutineWorker + setForeground(ForegroundInfo) notification
 │   ├── ActiveDownloads.kt     in-memory live job board (progress is never written to Room)
-│   └── JobData.kt             DownloadArgs ↔ WorkManager Data
+│   └── JobData.kt             DownloadArgs ↔ WorkManager Data ↔ persisted queue snapshot
 ├── util/                      Notifier, Fmt (bytes/duration/ETA/date buckets), MediaActions, extras
 └── ui/
     ├── theme/                 M3 colour + type, dynamic colour on API 31+, no XML component lib
@@ -144,6 +144,11 @@ app/src/main/java/dev/hamza/localtube/
     ├── settings/              storage, appearance, defaults, engine + first-run dialog
     └── navigation/            routes, bottom tabs, fullscreen player route
 ```
+
+`app/src/full/java/` and `app/src/slim/java/` each hold one file, `engine/FfmpegSupport.kt`: the full
+build initialises the bundled FFmpeg, the slim build has no FFmpeg artifact on its classpath at all,
+so it compiles the no-op twin. `android.sourceSets` picks the directory from `-Pslim`, which keeps one
+source tree instead of two product flavours.
 
 ## Deliberate size choices
 
