@@ -1,6 +1,9 @@
 package dev.hamza.localtube.ui.icons
 
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.unit.dp
 
 /**
@@ -17,7 +20,11 @@ private fun icon(name: String, pathData: String): ImageVector =
         viewportWidth = 24f,
         viewportHeight = 24f,
     ).apply {
-        addPath(pathData = pathData)
+        // Black like every generated Material icon; Icon() repaints it through its tint.
+        addPath(
+            pathData = PathParser().parsePathString(pathData).toNodes(),
+            fill = SolidColor(Color.Black),
+        )
     }.build()
 
 val Play: ImageVector = icon("play", "M8,5 L19,12 L8,19 Z")
