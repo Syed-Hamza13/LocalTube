@@ -3,13 +3,14 @@
 # On a failed build this copies the interesting lines out as ::error:: annotations so the failure can
 # be read straight from the API. Run it as: annotate-gradle-log.sh <log-file> <label>
 #
-# GitHub keeps at most 50 annotations per check run, so the lines are emitted highest-signal first and
-# the totals below stay under that budget.
+# GitHub keeps at most 50 annotations per check run, so the buckets below are ordered highest-signal
+# first and their limits stay under that budget.
 
 set -u
 
 log="${1:-}"
 label="${2:-gradle}"
+tmp="${RUNNER_TEMP:-/tmp}"
 
 if [ ! -s "$log" ]; then
   echo "::error::${label}: build failed with no output captured"
@@ -18,30 +19,36 @@ fi
 
 # Order matters: percent first, otherwise the carriage-return escape introduces a stray %25.
 strip() {
-  sed -e 's/%/%25/g' -e 's/\r/%0D/g' -e 's/\x1b\[[0-9;]*m//g'
+  sed -e 's/%/%25/g' -e 's/\r/%0D/g' -e 's/\x1b\[[0-9;]*m//g' -e 's/^[[:space:]]*//'
 }
 
 annotate() {
-  local limit="$1"
-  shift
-  local file="$1"
-  shift
+  local limit="$1" file="$2"
   if [ -s "$file" ]; then
     head -n "$limit" "$file" | sed "s|^|::error::${label}: |"
   fi
 }
 
-# kotlinc/javac diagnostics: "e: file:///.../Foo.kt: (12,3): Unresolved reference".
-grep -E '^e: ' "$log" | strip | sort -u >"$RUNNER_TEMP/an-errors.txt"
-# Gradle's own explanation block, which sits at the very end of the log, after the task lines.
-grep -E '^(FAILURE: |Execution failed|A problem occurred|\* What went wrong|\* Try:|\* Get more help|Caused by:|BUILD |Deprecated Gradle|> Task .* FAILED)' "$log" |
+# 1. Compiler diagnostics: "e: file:///.../Foo.kt: (12,3): Unresolved reference".
+grep -E '^e: ' "$log" | strip | awk '!seen[$0]++' >"$tmp/an-errors.txt"
+
+# 2. Gradle's explanation block(s) - the real reason, which sits between "What went wrong" and "Try".
+awk '/^\* What went wrong:/{flag=1; next} /^\* Try:/{flag=0} flag' "$log" |
+  grep -v '^[[:space:]]*$' | strip | awk '!seen[$0]++' >"$tmp/an-why.txt"
+
+# 3. Reason lines that Gradle/AGP print indented or mid-log.
+grep -Ei 'requires Android (Gradle plugin|compileSdk|build tools)|AAR metadata|Manifest merger failed|ERROR:|is not a valid (value|name)|Deprecation' "$log" |
   strip |
-  awk '!seen[$0]++' >"$RUNNER_TEMP/an-summary.txt"
-# Anything else Gradle printed under the failing task ("Required by:", AGP version demands, ...).
-grep -E '^(w: |error: |warning: |> )' "$log" | grep -v '^> Task ' | strip | awk '!seen[$0]++' >"$RUNNER_TEMP/an-other.txt"
+  awk '!seen[$0]++' >"$tmp/an-detail.txt"
 
-annotate 30 "$RUNNER_TEMP/an-errors.txt"
-annotate 10 "$RUNNER_TEMP/an-summary.txt"
-annotate 5 "$RUNNER_TEMP/an-other.txt"
+# 4. Which tasks broke, plus the "Required by:" chains that explain why a version got pulled in.
+grep -E '^(> Task .* FAILED|FAILURE: |[A-Za-z0-9_.:-]+ (needed|required) by )' "$log" |
+  strip |
+  awk '!seen[$0]++' >"$tmp/an-tasks.txt"
 
-echo "::error::${label}: counts: kotlin/javac=$(wc -l <"$RUNNER_TEMP/an-errors.txt") summary=$(wc -l <"$RUNNER_TEMP/an-summary.txt") other=$(wc -l <"$RUNNER_TEMP/an-other.txt")"
+annotate 22 "$tmp/an-errors.txt"
+annotate 12 "$tmp/an-why.txt"
+annotate 9 "$tmp/an-detail.txt"
+annotate 4 "$tmp/an-tasks.txt"
+
+echo "::error::${label}: counts errors=$(wc -l <"$tmp/an-errors.txt") why=$(wc -l <"$tmp/an-why.txt") detail=$(wc -l <"$tmp/an-detail.txt") tasks=$(wc -l <"$tmp/an-tasks.txt")"
