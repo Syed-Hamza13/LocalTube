@@ -72,14 +72,30 @@ jobs:
 
       - name: Assemble debug
         if: ${{ github.event.inputs.build_type == 'debug' || github.event.inputs.build_type == 'both' || github.event.inputs.build_type == '' }}
-        run: gradle --no-daemon assembleDebug -Pslim=${{ matrix.slim }}
+        shell: bash
+        run: |
+          set -o pipefail
+          if gradle --no-daemon --console=plain assembleDebug "-Pslim=${{ matrix.slim }}" 2>&1 |
+            tee "$RUNNER_TEMP/assemble-debug.log"; then
+            exit 0
+          fi
+          bash .github/scripts/annotate-gradle-log.sh "$RUNNER_TEMP/assemble-debug.log" assembleDebug
+          exit 1
 
       - name: Assemble release
         if: ${{ github.event.inputs.build_type == 'release' || github.event.inputs.build_type == 'both' || github.event.inputs.build_type == '' }}
+        shell: bash
         env:
           LOCALTUBE_KEY_ALIAS: ${{ secrets.LOCALTUBE_KEY_ALIAS }}
           LOCALTUBE_KEY_PASSWORD: ${{ secrets.LOCALTUBE_KEY_PASSWORD }}
-        run: gradle --no-daemon assembleRelease -Pslim=${{ matrix.slim }}
+        run: |
+          set -o pipefail
+          if gradle --no-daemon --console=plain assembleRelease "-Pslim=${{ matrix.slim }}" 2>&1 |
+            tee "$RUNNER_TEMP/assemble-release.log"; then
+            exit 0
+          fi
+          bash .github/scripts/annotate-gradle-log.sh "$RUNNER_TEMP/assemble-release.log" assembleRelease
+          exit 1
 
       - name: Report APK sizes
         run: |
