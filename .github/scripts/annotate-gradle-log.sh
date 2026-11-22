@@ -36,19 +36,24 @@ grep -E '^e: ' "$log" | strip | awk '!seen[$0]++' >"$tmp/an-errors.txt"
 awk '/^\* What went wrong:/{flag=1; next} /^\* Try:/{flag=0} flag' "$log" |
   grep -v '^[[:space:]]*$' | strip | awk '!seen[$0]++' >"$tmp/an-why.txt"
 
-# 3. Reason lines that Gradle/AGP print indented or mid-log.
-grep -Ei 'requires Android (Gradle plugin|compileSdk|build tools)|AAR metadata|Manifest merger failed|ERROR:|is not a valid (value|name)|Deprecation' "$log" |
+# 3. AAR metadata complaints, which wrap over three lines each: artifact + demanded version.
+grep -A2 -E "requires (libraries and applications|this project to use)|Dependency '[^']+' requires" "$log" |
+  grep -v '^--$' | strip | awk '!seen[$0]++' >"$tmp/an-aar.txt"
+
+# 4. Reason lines that Gradle/AGP print indented or mid-log.
+grep -Ei 'requires Android (Gradle plugin|compileSdk|build tools)|Manifest merger failed|ERROR:|is not a valid (value|name)' "$log" |
   strip |
   awk '!seen[$0]++' >"$tmp/an-detail.txt"
 
-# 4. Which tasks broke, plus the "Required by:" chains that explain why a version got pulled in.
-grep -E '^(> Task .* FAILED|FAILURE: |[A-Za-z0-9_.:-]+ (needed|required) by )' "$log" |
+# 5. Which tasks broke.
+grep -E '^(> Task .* FAILED|FAILURE: )' "$log" |
   strip |
   awk '!seen[$0]++' >"$tmp/an-tasks.txt"
 
-annotate 22 "$tmp/an-errors.txt"
-annotate 12 "$tmp/an-why.txt"
-annotate 9 "$tmp/an-detail.txt"
-annotate 4 "$tmp/an-tasks.txt"
+annotate 20 "$tmp/an-errors.txt"
+annotate 14 "$tmp/an-aar.txt"
+annotate 6 "$tmp/an-why.txt"
+annotate 6 "$tmp/an-detail.txt"
+annotate 3 "$tmp/an-tasks.txt"
 
-echo "::error::${label}: counts errors=$(wc -l <"$tmp/an-errors.txt") why=$(wc -l <"$tmp/an-why.txt") detail=$(wc -l <"$tmp/an-detail.txt") tasks=$(wc -l <"$tmp/an-tasks.txt")"
+echo "::error::${label}: counts errors=$(wc -l <"$tmp/an-errors.txt") aar=$(wc -l <"$tmp/an-aar.txt") why=$(wc -l <"$tmp/an-why.txt") detail=$(wc -l <"$tmp/an-detail.txt") tasks=$(wc -l <"$tmp/an-tasks.txt")"

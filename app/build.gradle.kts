@@ -22,6 +22,8 @@ val releaseKeystore = System.getenv("LOCALTUBE_KEYSTORE")?.let(::File)
 
 android {
     namespace = "dev.hamza.localtube"
+    // AGP 8.13.2's supported/recommended platform. The dependency line in libs.versions.toml is
+    // pinned so nothing demands API 37; raising this without AGP 9 only moves the failure.
     compileSdk = 36
 
     defaultConfig {

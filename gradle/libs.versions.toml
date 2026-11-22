@@ -4,12 +4,14 @@ kotlin = "2.2.21"
 ksp = "2.2.21-2.0.5"
 coroutines = "1.11.0"
 
-# 1.19.x is built against AGP 9.1 / compileSdk 37 and fails :app:checkDebugAarMetadata on this AGP.
+# Newest AndroidX line whose AAR metadata still fits AGP 8.13.2 + compileSdk 36. The 2026.08 BOM
+# (compose 1.12), navigation 2.10.x, lifecycle 2.11.x and core 1.19.x all declare
+# minAndroidGradlePluginVersion=9.1.0 and fail :app:checkDebugAarMetadata.
 coreKtx = "1.18.0"
 activityCompose = "1.13.0"
-composeBom = "2026.08.00"
-lifecycle = "2.11.1"
-navigation = "2.10.2"
+composeBom = "2026.06.01"
+lifecycle = "2.10.0"
+navigation = "2.9.8"
 room = "2.8.5"
 work = "2.12.0"
 media3 = "1.11.1"
