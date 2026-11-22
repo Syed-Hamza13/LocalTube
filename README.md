@@ -8,6 +8,9 @@ Jetpack Compose (Material 3), MVVM, Room, WorkManager and
 [`youtubedl-android`](https://github.com/junkfood/youtubedl-android) (the maintained
 `io.github.junkfood02.youtubedl-android` fork of yausername's library).
 
+**Status:** CI builds every push, both variants, debug and release, all green — release APKs measure
+**54.05 MB** (full) and **20.04 MB** (slim). What has *not* happened yet is a run on a physical phone.
+
 ---
 
 ## What it does
@@ -32,12 +35,18 @@ The engine is not the app. Measured from the published AARs, `arm64-v8a` slice o
 | `ytdlp:library` — `libpython.zip.so` 13.64 MB + `libqjs.so` 0.87 MB | **14.52 MB** |
 | `ytdlp:library` — `res/raw` (Python + yt-dlp bundle) | 3.02 MB |
 | `ytdlp:ffmpeg` — `libffmpeg.so` | **34.50 MB** |
-| Compose + Room + WorkManager + Media3 + Coil, R8-shrunk, single ABI | ~9–12 MB |
+| Compose + Room + WorkManager + Media3 + Coil + this app, R8-shrunk, single ABI | **2.50 MB** |
 
-| Build | Expected APK | Needs FFmpeg for |
-| --- | --- | --- |
-| **full** (`gradle assembleRelease`) | ~50–60 MB | merging 1080p/4K video+audio into one mp4, and `-x` to mp3 |
-| **slim** (`gradle assembleRelease -Pslim=true`) | ~20–25 MB | — (progressive streams ≤720p, m4a extraction only) |
+That last line is arithmetic from the builds below: the slim release APK (20.04 MB) minus the 17.54 MB
+the yt-dlp library itself ships. Everything the app adds is 2.5 MB.
+
+| Build | Release APK | Debug APK | Needs FFmpeg for |
+| --- | --- | --- | --- |
+| **full** (`gradle assembleRelease`) | **54.05 MB** | 68.93 MB | merging 1080p/4K video+audio into one mp4, and `-x` to mp3 |
+| **slim** (`gradle assembleRelease -Pslim=true`) | **20.04 MB** | 34.90 MB | — (progressive streams ≤720p, m4a extraction only) |
+
+Measured in CI on commit `47ae3d7`; the debug numbers are larger because they are not shrunk, and the
+54.05 − 20.04 = 34 MB gap is exactly the FFmpeg binary.
 
 Every run prints the exact numbers twice: in the **job summary** and as annotations on the
 "Report APK sizes" step (annotations are readable without signing in). `useLegacyPackaging` is
@@ -49,8 +58,9 @@ little larger than the APK.
 1. Push this folder to a GitHub repository (private is fine).
 2. **Actions → “Build APK” → Run workflow** (or just push to `main`). It runs a 2-job matrix:
    `full` and `slim`, each `assembleDebug` + `assembleRelease`.
-3. Open the run → **Artifacts** → download `LocalTube-full-apk` (or `-slim-apk`) → install
-   `app-release.apk` on the phone (*Allow from unknown sources* for your browser/File Manager).
+3. Open the run → **Artifacts** → download `LocalTube-full-apk` (or `-slim-apk`). The zip contains
+   `app-release.apk` and `app-debug.apk`; install the **release** one on the phone (*Allow from
+   unknown sources* for your browser/File Manager).
 
 Toolchain pinned in the workflow: JDK 17 (temurin), Gradle **8.14.8** via `gradle/actions/setup-gradle@v4`.
 The repository deliberately contains **no** binary `gradle-wrapper.jar`; CI calls `gradle` directly.
