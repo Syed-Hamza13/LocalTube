@@ -82,7 +82,7 @@ android {
     // Drops the Play "dependency metadata" blob (~50 KB) that personal builds do not need.
     dependenciesInfo {
         includeInApk = false
-        includeInManifest = false
+        includeInBundle = false
     }
 
     packaging {
