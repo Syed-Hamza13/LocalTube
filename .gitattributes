@@ -1,0 +1,5 @@
+# The CI helper scripts run on an Ubuntu runner; a stray CR there breaks `bash`.
+*.sh text eol=lf
+*.yml text eol=lf
+*.kts text eol=lf
+*.toml text eol=lf
