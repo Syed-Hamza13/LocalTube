@@ -65,8 +65,8 @@ awk '/^\* What went wrong:/{flag=1; next} /^\* Try:/{flag=0} flag' "$log" |
 grep -A2 -E "requires (libraries and applications|this project to use)|Dependency '[^']+' requires" "$log" |
   grep -v '^--$' | strip | awk '!seen[$0]++' >"$tmp/an-aar.txt"
 
-# 4. Reason lines that Gradle/AGP print indented or mid-log.
-grep -Ei 'requires Android (Gradle plugin|compileSdk|build tools)|Manifest merger failed|ERROR:|is not a valid (value|name)' "$log" |
+# 4. Reason lines that Gradle/AGP/R8 print indented or mid-log.
+grep -Ei 'requires Android (Gradle plugin|compileSdk|build tools)|Manifest merger failed|ERROR:|is not a valid (value|name)|^Missing class|^Warning:|R8: |was already retained|Invocation target' "$log" |
   strip |
   awk '!seen[$0]++' >"$tmp/an-detail.txt"
 

@@ -116,6 +116,10 @@ jobs:
               awk '{ printf "%-58s %8.2f MB\n", $1, $2/1048576 }'
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+          # The step summary needs a signed-in browser; annotations are readable by anyone, so the
+          # same numbers go out as notices.
+          find app/build/outputs/apk -name '*.apk' -printf '%f %s\n' | sort | \
+            awk '{ printf "::notice::%s %.2f MB\n", $1, $2/1048576 }'
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4

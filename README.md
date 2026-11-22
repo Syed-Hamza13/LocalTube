@@ -39,7 +39,8 @@ The engine is not the app. Measured from the published AARs, `arm64-v8a` slice o
 | **full** (`gradle assembleRelease`) | ~50–60 MB | merging 1080p/4K video+audio into one mp4, and `-x` to mp3 |
 | **slim** (`gradle assembleRelease -Pslim=true`) | ~20–25 MB | — (progressive streams ≤720p, m4a extraction only) |
 
-The exact numbers land in the **job summary** of every CI run (`APK sizes`). `useLegacyPackaging` is
+Every run prints the exact numbers twice: in the **job summary** and as annotations on the
+"Report APK sizes" step (annotations are readable without signing in). `useLegacyPackaging` is
 on because the Python/FFmpeg `.so` files must be extracted at install, so the *installed* size is a
 little larger than the APK.
 
@@ -79,9 +80,11 @@ gradle wrapper --gradle-version 8.14.8   # once, generates the missing wrapper j
 ./gradlew assembleRelease -Pslim=true    # slim
 ```
 
-> **Note about this repository as committed:** it was authored on a Windows machine with **no JDK
-> and no Android SDK installed**, so nothing here has been compiled or run on a device yet. The
-> GitHub Actions build is the first real test; expect a round of compiler fixes on the first run.
+> **What is verified and what is not:** CI compiles and packages both variants (`full`, `slim`) in
+> debug *and* release, so the code, the pinned dependency set and the R8 rules are proven. This
+> repository was authored on a machine with no Android SDK, so nothing has been run **on a phone**
+> yet — the first install is where the yt-dlp runtime, MediaStore publish and the share sheet get
+> their real test.
 
 ## Permissions (all of them)
 
