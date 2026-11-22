@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!--
+      Android 15 (API 35) compliance notes
+      ------------------------------------
+      * No READ/WRITE_EXTERNAL_STORAGE and no MANAGE_EXTERNAL_STORAGE: media is written to the
+        app-specific external dir (always writable) and optionally published into
+        Movies/<folder> through MediaStore, which needs no permission on API 29+.
+      * Downloads run inside a WorkManager foreground service typed as dataSync, which is the
+        only FGS type a downloader may use from API 34 onwards. FOREGROUND_SERVICE_DATA_SYNC
+        is a normal permission: granted at install, no runtime prompt.
+      * POST_NOTIFICATIONS is the only runtime permission the app ever asks for.
+    -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:mimeType="video/*" />
+        </intent>
+    </queries>
+
+    <application
+        android:name=".LocalTubeApp"
+        android:allowBackup="false"
+        android:enableOnBackInvokedCallback="true"
+        android:extractNativeLibs="true"
+        android:hardwareAccelerated="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.LocalTube"
+        android:usesCleartextTraffic="false"
+        tools:targetApi="35">
+
+        <activity
+            android:name=".MainActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|density|uiMode"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:theme="@style/Theme.LocalTube"
+            android:windowSoftInputMode="adjustResize">
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!-- Share sheet: YouTube -> Share -> LocalTube (also works from any browser/file) -->
+            <intent-filter android:label="@string/share_import_label">
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+
+            <intent-filter android:label="@string/share_import_label">
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="video/*" />
+            </intent-filter>
+
+            <!-- Open a link with this app -->
+            <intent-filter android:label="@string/share_import_label">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" />
+                <data android:scheme="http" />
+                <data android:host="youtube.com" />
+                <data android:host="www.youtube.com" />
+                <data android:host="m.youtube.com" />
+                <data android:host="music.youtube.com" />
+                <data android:host="youtu.be" />
+            </intent-filter>
+        </activity>
+
+        <!-- Grants other apps (external players) read access to our private media dir. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
+        <!--
+          WorkManager self-initialises through its own provider, so no Configuration.Provider
+          and no foreground-service declaration is needed here: WorkManager ships
+          SystemForegroundService, which we drive through setForeground(ForegroundInfo(...)).
+        -->
+        <service
+            android:name="androidx.work.impl.foreground.SystemForegroundService"
+            android:foregroundServiceType="dataSync"
+            tools:node="merge" />
+    </application>
+
+</manifest>

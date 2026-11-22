@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      Plain DeviceDefault theme on purpose: depending on com.google.android.material just to
+      host a Material3 XML theme costs ~1.5 MB of resources, and Jetpack Compose draws every
+      visible pixel itself. Status/navigation bars are made transparent for edge-to-edge.
+    -->
+    <style name="Theme.LocalTube" parent="@android:style/Theme.DeviceDefault.NoActionBar">
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowActionBar">false</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowBackground">@color/window_bg</item>
+    </style>
+</resources>

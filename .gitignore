@@ -1,0 +1,21 @@
+# Gradle / Android
+*.iml
+.gradle/
+build/
+local.properties
+captures/
+.externalNativeBuild/
+.cxx/
+*.apk
+*.aab
+*.keystore
+*.jks
+keystore.properties
+
+# IDE
+.idea/
+.vscode/
+.DS_Store
+
+# Qoder / tooling scratch
+.qoder/cache/
