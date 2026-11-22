@@ -1,7 +1,6 @@
 package dev.hamza.localtube.engine
 
 import android.content.Context
-import com.yausername.ffmpeg.FFmpeg
 import com.yausername.youtubedl_android.YoutubeDL
 import com.yausername.youtubedl_android.YoutubeDLRequest
 import com.yausername.youtubedl_android.YoutubeDLException
@@ -14,6 +13,8 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.InputStream
+import java.io.OutputStream
 import java.net.HttpURLConnection
 import java.net.URL
 
@@ -60,7 +61,7 @@ class YtDlpEngine(
         try {
             YoutubeDL.getInstance().init(appContext)
             if (hasFfmpeg) {
-                runCatching { FFmpeg.getInstance().init(appContext) }
+                runCatching { initFfmpeg(appContext) }
             }
             ready = true
         } catch (t: Throwable) {
@@ -157,9 +158,7 @@ class YtDlpEngine(
                 if (connection.responseCode !in 200..299) return@withContext null
                 dest.parentFile?.mkdirs()
                 val written = dest.outputStream().use { out ->
-                    connection.inputStream.use { input ->
-                        input.copyTo(out, bufferSize = 16 * 1024, limit = MAX_THUMBNAIL_BYTES)
-                    }
+                    connection.inputStream.use { input -> input.copyUpTo(out, MAX_THUMBNAIL_BYTES) }
                 }
                 if (written <= 0) {
                     dest.delete()
@@ -220,6 +219,20 @@ class YtDlpEngine(
             else -> raw
         }
         return friendly.take(280)
+    }
+
+    /** [java.io.InputStream.copyTo] has no ceiling; a rogue response must not fill the cache. */
+    private fun InputStream.copyUpTo(out: OutputStream, maxBytes: Long): Long {
+        val buffer = ByteArray(16 * 1024)
+        var total = 0L
+        while (total < maxBytes) {
+            val chunk = minOf(buffer.size.toLong(), maxBytes - total).toInt()
+            val read = read(buffer, 0, chunk)
+            if (read == -1) break
+            out.write(buffer, 0, read)
+            total += read
+        }
+        return total
     }
 
     private companion object {

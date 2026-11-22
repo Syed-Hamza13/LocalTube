@@ -89,13 +89,6 @@ class DownloadWorker(
         }
     }
 
-    override suspend fun onStopped() {
-        super.onStopped()
-        services.engine.cancel(workId)
-        if (isCancelled) ActiveDownloads.cancelled(workId)
-        Notifier.cancel(applicationContext, progressNotificationId)
-    }
-
     private fun handleFailure(args: DownloadArgs, error: Throwable): Result {
         val message = error.message?.takeIf { it.isNotBlank() } ?: "Download failed"
         if (shouldRetry(error) && runAttemptCount < MAX_ATTEMPTS) {

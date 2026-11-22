@@ -76,6 +76,14 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
+    // One source tree, two dependency sets: src/full sees the FFmpeg artifact, src/slim does not,
+    // so each provides its own engine/FfmpegSupport.kt.
+    sourceSets {
+        getByName("main") {
+            java.srcDir(if (slimBuild) "src/slim/java" else "src/full/java")
+        }
+    }
+
     buildFeatures {
         compose = true
         buildConfig = true

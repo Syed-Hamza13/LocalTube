@@ -31,5 +31,5 @@ class ServiceLocator(context: Context) {
 
     val library: LibraryRepository by lazy { LibraryRepository(database, storage) }
 
-    val scheduler: DownloadScheduler by lazy { DownloadScheduler(appContext, engine) }
+    val scheduler: DownloadScheduler by lazy { DownloadScheduler(appContext, engine, prefs) }
 }

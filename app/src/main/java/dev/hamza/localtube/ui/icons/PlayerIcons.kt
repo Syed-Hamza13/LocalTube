@@ -1,6 +1,5 @@
 package dev.hamza.localtube.ui.icons
 
-import androidx.compose.ui.graphics.PathFill
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 
@@ -18,7 +17,7 @@ private fun icon(name: String, pathData: String): ImageVector =
         viewportWidth = 24f,
         viewportHeight = 24f,
     ).apply {
-        addPath(PathFill(pathData = pathData))
+        addPath(pathData = pathData)
     }.build()
 
 val Play: ImageVector = icon("play", "M8,5 L19,12 L8,19 Z")

@@ -87,7 +87,6 @@ object Notifier {
             .setShowWhen(false)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setCategory(NotificationCompat.CATEGORY_PROGRESS)
-            .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_BEHAVIOR_DEFAULT)
             .setProgress(100, percent.toInt().coerceIn(0, 100), percent <= 0f)
             .setContentIntent(openAppIntent(context, workId.hashCode()))
             .addAction(

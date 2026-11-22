@@ -97,6 +97,16 @@ jobs:
           bash .github/scripts/annotate-gradle-log.sh "$RUNNER_TEMP/assemble-release.log" assembleRelease
           exit 1
 
+      # Annotations are capped at 50 per check run; the raw logs hold whatever did not fit.
+      - name: Upload build logs (on failure)
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: LocalTube-${{ matrix.variant }}-gradle-logs
+          path: ${{ runner.temp }}/assemble-*.log
+          if-no-files-found: ignore
+          retention-days: 7
+
       - name: Report APK sizes
         run: |
           {

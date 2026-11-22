@@ -53,4 +53,58 @@ object JobData {
                 .orEmpty(),
         )
     }
+
+    /**
+     * Text form for the persisted queue. [androidx.work.WorkInfo] deliberately hides inputData, so a
+     * job can only be re-adopted after process death from something the app stores itself.
+     */
+    fun encode(args: DownloadArgs): String = with(args) {
+        listOf(
+            url,
+            videoId,
+            title,
+            channel.orEmpty(),
+            durationSec.toString(),
+            thumbnailUrl.orEmpty(),
+            mode.key,
+            quality.key,
+            audioExt.key,
+            playlistIds.joinToString("+"),
+        ).joinToString(FIELD)
+    }
+
+    fun decode(line: String): DownloadArgs? {
+        val f = line.split(FIELD)
+        if (f.size < 10 || f[0].isBlank()) return null
+        return DownloadArgs(
+            url = f[0],
+            videoId = f[1].ifEmpty { f[0] },
+            title = f[2].ifEmpty { "Untitled" },
+            channel = f[3].takeIf { it.isNotBlank() },
+            durationSec = f[4].toLongOrNull() ?: 0L,
+            thumbnailUrl = f[5].takeIf { it.isNotBlank() },
+            mode = DownloadMode.fromKey(f[6]),
+            quality = Quality.fromKey(f[7]),
+            audioExt = AudioExt.fromKey(f[8]),
+            playlistIds = f[9].split('+').mapNotNull { it.toLongOrNull() },
+        )
+    }
+
+    /** Whole queue as one string, so DataStore keeps a single key for it. */
+    fun encodeQueue(entries: List<Pair<String, DownloadArgs>>): String =
+        entries.joinToString(RECORD) { (workId, args) -> workId + FIELD + encode(args) }
+
+    fun decodeQueue(raw: String): List<Pair<String, DownloadArgs>> =
+        raw.split(RECORD)
+            .filter { it.isNotBlank() }
+            .mapNotNull { entry ->
+                val sep = entry.indexOf(FIELD)
+                if (sep <= 0) return@mapNotNull null
+                val args = decode(entry.substring(sep + 1)) ?: return@mapNotNull null
+                entry.substring(0, sep) to args
+            }
+
+    /** Control characters: titles and URLs contain every printable one. */
+    private const val FIELD = "\u001F"
+    private const val RECORD = "\u001E"
 }

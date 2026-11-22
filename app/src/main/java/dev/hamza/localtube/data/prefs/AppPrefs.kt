@@ -46,6 +46,7 @@ class AppPrefs(context: Context) {
         val DEFAULT_MODE = stringPreferencesKey("default_mode")
         val DEFAULT_QUALITY = stringPreferencesKey("default_quality")
         val DEFAULT_AUDIO_EXT = stringPreferencesKey("default_audio_ext")
+        val QUEUE = stringPreferencesKey("download_queue")
     }
 
     val settings: Flow<AppSettings> = store.data
@@ -71,6 +72,14 @@ class AppPrefs(context: Context) {
         it[Keys.DEFAULT_QUALITY] = quality.key
         it[Keys.DEFAULT_AUDIO_EXT] = audioExt.key
     }
+
+    /**
+     * Opaque download queue owned by [dev.hamza.localtube.download.DownloadScheduler]. WorkManager
+     * keeps the work itself; this is only what the app needs to label those jobs again after a kill.
+     */
+    suspend fun queue(): String = store.data.first()[Keys.QUEUE].orEmpty()
+
+    suspend fun setQueue(raw: String) = edit { it[Keys.QUEUE] = raw }
 
     private suspend fun edit(block: (MutablePreferences) -> Unit) {
         store.edit(block)
