@@ -4,7 +4,7 @@
 
     <!--
       Android 15 (API 35) compliance notes
-      ------------------------------------
+
       * No READ/WRITE_EXTERNAL_STORAGE and no MANAGE_EXTERNAL_STORAGE: media is written to the
         app-specific external dir (always writable) and optionally published into
         Movies/<folder> through MediaStore, which needs no permission on API 29+.
