@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The resource shrinker follows `R.raw.ytdlp` reads inside the library's own dex, but the whole
+  yt-dlp Python bundle lives in that one 3 MB file: if the trace ever misses it the app fails at
+  startup with a wrapped exception. Pinning it makes that untestable dependency explicit.
+-->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@raw/ytdlp" />
