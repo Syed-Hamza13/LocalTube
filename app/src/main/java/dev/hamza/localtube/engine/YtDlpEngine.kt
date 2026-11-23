@@ -64,8 +64,10 @@ class YtDlpEngine(
                 runCatching { initFfmpeg(appContext) }
             }
             ready = true
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (t: Throwable) {
-            throw EngineException("Could not start the yt-dlp engine on this device.", t)
+            throw EngineException("Could not start the yt-dlp engine: ${causeChain(t)}", t)
         }
     }
 
@@ -221,6 +223,22 @@ class YtDlpEngine(
         return friendly.take(280)
     }
 
+    /**
+     * `YoutubeDL.init()` buries the real IO/resource error one or two causes deep under a plain
+     * "failed to initialize", and on a phone the banner is the only channel that error has.
+     */
+    private fun causeChain(error: Throwable): String {
+        val parts = mutableListOf<String>()
+        var current: Throwable? = error
+        while (current != null && parts.size < MAX_CAUSE_DEPTH) {
+            val text = current.message?.lineSequence()?.firstOrNull { it.isNotBlank() }?.trim()
+            parts += current.javaClass.simpleName + (if (text == null) "" else ": $text")
+            val next = current.cause
+            current = if (next === current) null else next
+        }
+        return parts.joinToString(" <- ").take(260)
+    }
+
     /** [java.io.InputStream.copyTo] has no ceiling; a rogue response must not fill the cache. */
     private fun InputStream.copyUpTo(out: OutputStream, maxBytes: Long): Long {
         val buffer = ByteArray(16 * 1024)
@@ -239,6 +257,7 @@ class YtDlpEngine(
         const val USER_AGENT =
             "Mozilla/5.0 (Linux; Android 15) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Mobile Safari/537.36"
         const val MAX_THUMBNAIL_BYTES = 3L * 1024 * 1024
+        const val MAX_CAUSE_DEPTH = 4
         val SPEED_REGEX = Regex("at\\s+([0-9.,]+\\s*[KMGT]?i?B/s)")
     }
 }
