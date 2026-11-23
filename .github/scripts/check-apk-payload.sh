@@ -14,13 +14,16 @@ missing=0
 
 for apk in "$@"; do
     label="$(basename "$(dirname "$apk")")"
-    listing="$(unzip -l "$apk")"
+    # unzip -v columns: length method compressed-size ratio date time crc name. The method is the
+    # only externally visible proof of useLegacyPackaging: the engine execs and unzips files out of
+    # nativeLibraryDir, which only exists on disk when the installer extracted them.
+    listing="$(unzip -v "$apk")"
 
     # The yt-dlp bundle is matched by uncompressed length: release builds may rename res/ paths,
     # the bytes may not change. Its real path is printed so a rename stays visible.
-    ytdlp="$(printf '%s\n' "$listing" | awk '$1 + 0 == 3170726 && NF >= 4 { print $NF; exit }')"
-    python="$(printf '%s\n' "$listing" | awk 'index($NF, "/libpython.zip.so") { print $NF; exit }')"
-    ffmpeg="$(printf '%s\n' "$listing" | awk 'index($NF, "/libffmpeg.zip.so") { print $NF; exit }')"
+    ytdlp="$(printf '%s\n' "$listing" | awk '$1 + 0 == 3170726 && NF >= 8 { print $NF " " $2; exit }')"
+    python="$(printf '%s\n' "$listing" | awk 'index($NF, "/libpython.zip.so") && NF >= 8 { print $NF " " $2; exit }')"
+    ffmpeg="$(printf '%s\n' "$listing" | awk 'index($NF, "/libffmpeg.zip.so") && NF >= 8 { print $NF " " $2; exit }')"
 
     seg="$label"
     if [[ -n "$ytdlp" ]]; then
