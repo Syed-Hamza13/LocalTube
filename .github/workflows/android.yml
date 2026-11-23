@@ -125,14 +125,9 @@ jobs:
       # shrinker left them in. Fails the build rather than the phone.
       - name: Check APK engine payloads
         shell: bash
-        run: |
-          status=0
-          for apk in $(find app/build/outputs/apk -name '*.apk' | sort); do
-            want=""
-            if [ "${{ matrix.variant }}" = "full" ]; then want="ffmpeg"; fi
-            if ! bash .github/scripts/check-apk-payload.sh "$apk" $want; then status=1; fi
-          done
-          exit "$status"
+        env:
+          WANT_FFMPEG: ${{ matrix.variant == 'full' && '1' || '0' }}
+        run: bash .github/scripts/check-apk-payload.sh $(find app/build/outputs/apk -name '*.apk' | sort)
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4

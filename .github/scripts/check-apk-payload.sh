@@ -3,40 +3,52 @@
 # Nothing checks these at compile time: R8 and the resource shrinker decide at packaging, and a
 # missing one only shows up as a dead engine on the phone.
 #
-#   usage: check-apk-payload.sh <apk> [ffmpeg]
+#   usage: check-apk-payload.sh <apk>...   (WANT_FFMPEG=1 makes the ffmpeg bundle mandatory)
 #
-# The yt-dlp bundle is matched by byte size because release builds may rename res/ paths; the
-# discovered path is printed so a rename is visible instead of silently tolerated.
+# Everything leaves as ONE workflow command on purpose: GitHub keeps a single annotation per file
+# line, so a loop that prints a row per finding silently loses all but one of them.
 set -uo pipefail
 
-apk="$1"
-want_ffmpeg="${2:-}"
-label="$(basename "$(dirname "$apk")")/$(basename "$apk")"
-listing="$(unzip -l "$apk")"
+segments=""
 missing=0
 
-by_size() {
-    printf '%s\n' "$listing" | awk -v s="$1" '$1 + 0 == s + 0 && NF >= 4 { print $NF; exit }'
-}
+for apk in "$@"; do
+    label="$(basename "$(dirname "$apk")")"
+    listing="$(unzip -l "$apk")"
 
-by_name() {
-    printf '%s\n' "$listing" | awk -v n="/$1" 'index($NF, n) { print $NF; exit }'
-}
+    # The yt-dlp bundle is matched by uncompressed length: release builds may rename res/ paths,
+    # the bytes may not change. Its real path is printed so a rename stays visible.
+    ytdlp="$(printf '%s\n' "$listing" | awk '$1 + 0 == 3170726 && NF >= 4 { print $NF; exit }')"
+    python="$(printf '%s\n' "$listing" | awk 'index($NF, "/libpython.zip.so") { print $NF; exit }')"
+    ffmpeg="$(printf '%s\n' "$listing" | awk 'index($NF, "/libffmpeg.zip.so") { print $NF; exit }')"
 
-report() {
-    local what="$1" path="$2"
-    if [[ -z "$path" ]]; then
-        printf '::error::%s: %s is MISSING from the APK\n' "$label" "$what"
-        missing=1
+    seg="$label"
+    if [[ -n "$ytdlp" ]]; then
+        seg="$seg ytdlp=$ytdlp"
     else
-        printf '::notice::%s: %s at %s\n' "$label" "$what" "$path"
+        seg="$seg ytdlp=MISSING"
+        missing=1
     fi
-}
+    if [[ -n "$python" ]]; then
+        seg="$seg python=${python##*/}"
+    else
+        seg="$seg python=MISSING"
+        missing=1
+    fi
+    if [[ -n "$ffmpeg" ]]; then
+        seg="$seg ffmpeg=${ffmpeg##*/}"
+    elif [[ "${WANT_FFMPEG:-0}" == "1" ]]; then
+        seg="$seg ffmpeg=MISSING"
+        missing=1
+    fi
 
-report "yt-dlp bundle" "$(by_size 3170726)"
-report "python runtime" "$(by_name libpython.zip.so)"
-if [[ "$want_ffmpeg" == "ffmpeg" ]]; then
-    report "ffmpeg runtime" "$(by_name libffmpeg.zip.so)"
+    segments="${segments:+$segments | }$seg"
+done
+
+if (( missing )); then
+    printf '::error::engine payloads: %s\n' "$segments"
+else
+    printf '::notice::engine payloads: %s\n' "$segments"
 fi
 
 exit "$missing"
