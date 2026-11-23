@@ -9,7 +9,10 @@ Jetpack Compose (Material 3), MVVM, Room, WorkManager and
 `io.github.junkfood02.youtubedl-android` fork of yausername's library).
 
 **Status:** CI builds every push, both variants, debug and release, all green — release APKs measure
-**54.05 MB** (full) and **20.04 MB** (slim). What has *not* happened yet is a run on a physical phone.
+**54.05 MB** (full) and **20.04 MB** (slim), and each build now asserts that the yt-dlp bundle, the
+Python runtime and (for `full`) FFmpeg are still inside the APK after R8. First real install on the
+target phone gets through the whole UI; `YoutubeDL.init()` fails there and the reason is now on
+screen instead of in logcat, so engine startup is the open item.
 
 ---
 
@@ -91,10 +94,13 @@ gradle wrapper --gradle-version 8.14.8   # once, generates the missing wrapper j
 ```
 
 > **What is verified and what is not:** CI compiles and packages both variants (`full`, `slim`) in
-> debug *and* release, so the code, the pinned dependency set and the R8 rules are proven. This
-> repository was authored on a machine with no Android SDK, so nothing has been run **on a phone**
-> yet — the first install is where the yt-dlp runtime, MediaStore publish and the share sheet get
-> their real test.
+> debug *and* release, so the code, the pinned dependency set and the R8 rules are proven, and the
+> payload check reads the finished APK: `libpython.zip.so` ships **`Defl`**, which is what makes the
+> installer extract it into `nativeLibraryDir` — the one place the engine is willing to read *and*
+> `exec()` from — and the yt-dlp bundle survives shrinking (in release under its shortened path
+> `res/Nc`, not the `res/raw/ytdlp` name). Packaging cannot prove what a given phone ends up with,
+> so the engine banner prints the wrapped cause chain plus the paths and free space `init()` needs.
+> Downloads, the MediaStore publish and the share sheet still get their real test on first use.
 
 ## Permissions (all of them)
 

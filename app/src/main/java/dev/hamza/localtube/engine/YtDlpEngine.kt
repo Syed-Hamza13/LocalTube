@@ -67,7 +67,10 @@ class YtDlpEngine(
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (t: Throwable) {
-            throw EngineException("Could not start the yt-dlp engine: ${causeChain(t)}", t)
+            throw EngineException(
+                "Could not start the yt-dlp engine: ${causeChain(t)} | ${diskState()}",
+                t,
+            )
         }
     }
 
@@ -239,6 +242,22 @@ class YtDlpEngine(
         return parts.joinToString(" <- ").take(260)
     }
 
+    /**
+     * The files `init()` reads and the space it unpacks into. A startup failure on a phone has no
+     * other observable surface, and `Defl`-vs-`Stored` in the APK only says what the installer
+     * agreed to extract, not what actually landed.
+     */
+    private fun diskState(): String {
+        val libDir = File(appContext.applicationInfo.nativeLibraryDir ?: "")
+        val freeMb = appContext.noBackupFilesDir?.usableSpace ?: -1L
+        return "libs=${libDir.absolutePath} python=${sizeOf(File(libDir, "libpython.zip.so"))}" +
+            " stub=${sizeOf(File(libDir, "libpython.so"))}" +
+            " free=${if (freeMb < 0) "?" else "${freeMb / BYTES_PER_MB}MB"}"
+    }
+
+    private fun sizeOf(file: File): String =
+        if (file.isFile) "${file.length() / BYTES_PER_MB}MB" else "absent"
+
     /** [java.io.InputStream.copyTo] has no ceiling; a rogue response must not fill the cache. */
     private fun InputStream.copyUpTo(out: OutputStream, maxBytes: Long): Long {
         val buffer = ByteArray(16 * 1024)
@@ -258,6 +277,7 @@ class YtDlpEngine(
             "Mozilla/5.0 (Linux; Android 15) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Mobile Safari/537.36"
         const val MAX_THUMBNAIL_BYTES = 3L * 1024 * 1024
         const val MAX_CAUSE_DEPTH = 4
+        const val BYTES_PER_MB = 1024L * 1024L
         val SPEED_REGEX = Regex("at\\s+([0-9.,]+\\s*[KMGT]?i?B/s)")
     }
 }
