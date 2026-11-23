@@ -11,8 +11,6 @@ import dev.hamza.localtube.data.storage.StoredMedia
 import dev.hamza.localtube.domain.DownloadArgs
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.InputStream
@@ -58,27 +56,18 @@ class YtDlpEngine(
     @Volatile
     private var ready = false
 
-    /**
-     * `YoutubeDL.init()` is an unsynchronised check-then-copy of the same 3 MB and 14 MB files, so
-     * two workers starting together corrupt each other. The flag is re-read inside the lock.
-     */
-    private val initLock = Mutex()
-
     suspend fun ensureReady() = withContext(Dispatchers.IO) {
         if (ready) return@withContext
-        initLock.withLock {
-            if (ready) return@withLock
-            try {
-                YoutubeDL.getInstance().init(appContext)
-                if (hasFfmpeg) {
-                    runCatching { initFfmpeg(appContext) }
-                }
-                ready = true
-            } catch (cancelled: CancellationException) {
-                throw cancelled
-            } catch (t: Throwable) {
-                throw EngineException("Could not start the yt-dlp engine: ${causeChain(t)}", t)
+        try {
+            YoutubeDL.getInstance().init(appContext)
+            if (hasFfmpeg) {
+                runCatching { initFfmpeg(appContext) }
             }
+            ready = true
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (t: Throwable) {
+            throw EngineException("Could not start the yt-dlp engine: ${causeChain(t)}", t)
         }
     }
 
