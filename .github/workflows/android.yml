@@ -121,18 +121,18 @@ jobs:
           find app/build/outputs/apk -name '*.apk' -printf '%f %s\n' | sort | \
             awk '{ printf "::notice::%s %.2f MB\n", $1, $2/1048576 }'
 
-      # The engine unpacks two payloads at first run that no compiler can check still exist after
-      # R8 + the resource shrinker. Sizes, not names: release builds are free to shorten res/ paths.
-      - name: Report large APK entries
+      # The engine unpacks these payloads on first run; nothing but this proves R8 and the resource
+      # shrinker left them in. Fails the build rather than the phone.
+      - name: Check APK engine payloads
         shell: bash
         run: |
+          status=0
           for apk in $(find app/build/outputs/apk -name '*.apk' | sort); do
-            variant=$(basename "$(dirname "$apk")")
-            unzip -l "$apk" | \
-              awk -v v="$variant" '$1 ~ /^[0-9]+$/ && $1 + 0 > 300000 && $4 != "" {
-                printf "::notice::%s entry %s %s\n", v, $1, $4
-              }'
+            want=""
+            if [ "${{ matrix.variant }}" = "full" ]; then want="ffmpeg"; fi
+            if ! bash .github/scripts/check-apk-payload.sh "$apk" $want; then status=1; fi
           done
+          exit "$status"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
