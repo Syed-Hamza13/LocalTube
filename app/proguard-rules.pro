@@ -32,6 +32,13 @@
 -dontwarn java.awt.**
 -dontwarn javax.**
 
+# ---------- commons-compress (unzips the Python runtime inside ZipUtils) ----------
+# ExtraFieldUtils' <clinit> builds its header-id registry by calling Class.newInstance() on every
+# ZipExtraField implementation, and commons-compress turns an InstantiationException from that into
+# "class X is not a concrete class". R8 has no caller to trace, so without this the engine dies
+# before it can unpack Python.
+-keep class org.apache.commons.compress.archivers.zip.** { *; }
+
 # ---------- Room: entities + generated impls ----------
 -keep class dev.hamza.localtube.data.local.** { *; }
 -keep class * extends androidx.room.RoomDatabase { <init>(); }

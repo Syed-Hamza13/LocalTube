@@ -11,8 +11,10 @@ Jetpack Compose (Material 3), MVVM, Room, WorkManager and
 **Status:** CI builds every push, both variants, debug and release, all green — release APKs measure
 **54.05 MB** (full) and **20.04 MB** (slim), and each build now asserts that the yt-dlp bundle, the
 Python runtime and (for `full`) FFmpeg are still inside the APK after R8. First real install on the
-target phone gets through the whole UI; `YoutubeDL.init()` fails there and the reason is now on
-screen instead of in logcat, so engine startup is the open item.
+target phone gets through the whole UI. `YoutubeDL.init()` failed there; the on-screen cause chain
+pinned it to R8 stripping the `ZipExtraField` classes that `commons-compress` instantiates by
+reflection from a static initialiser (so Python never unpacked), and those classes are now kept —
+engine startup after that fix is the open item.
 
 ---
 
@@ -182,6 +184,13 @@ source tree instead of two product flavours.
 
 ## Things to know
 
+* **Two build settings are load-bearing for the engine — do not "optimise" them away.**
+  `packaging.jniLibs.useLegacyPackaging = true` (with `extractNativeLibs="true"`) is what makes the
+  installer put `libpython.so` in `nativeLibraryDir`, the only directory the library both reads and
+  `exec()`s from; and `-keep class org.apache.commons.compress.archivers.zip.**` in
+  `app/proguard-rules.pro` is what stops R8 from stripping the no-arg constructors that
+  `ExtraFieldUtils` reflects over in its static initialiser — without it the Python zip never
+  unpacks and `init()` dies with `class X is not a concrete class`.
 * **yt-dlp breaks when YouTube changes.** The engine is pinned inside the AAR; when a site change
   breaks downloads, update `ytdlp = "…"` in `gradle/libs.versions.toml` and rebuild.
 * **No playlist *URL* import** — playlists here are local collections you build yourself; a shared
