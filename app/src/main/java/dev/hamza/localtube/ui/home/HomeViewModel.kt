@@ -149,13 +149,27 @@ class HomeViewModel(private val services: ServiceLocator) : ViewModel() {
         )
         viewModelScope.launch {
             val duplicate = services.library.alreadyDownloaded(args.url)
-            services.scheduler.enqueue(args)
-            _state.value = _state.value.copy(
-                sheetOpen = false,
-                queuedTitle = meta.title,
-                alreadyInLibrary = duplicate,
-            )
+            runCatching { services.scheduler.enqueue(args) }
+                .onSuccess {
+                    _state.value = _state.value.copy(
+                        sheetOpen = false,
+                        queuedTitle = meta.title,
+                        alreadyInLibrary = duplicate,
+                    )
+                }
+                .onFailure { error ->
+                    _state.value = _state.value.copy(
+                        sheetOpen = false,
+                        error = "Could not queue the download: ${describe(error)}",
+                    )
+                }
         }
+    }
+
+    /** An enqueue failure used to reach the coroutine handler and kill the process; now it is readable. */
+    private fun describe(error: Throwable): String {
+        val cause = error.cause?.let { " <- ${it.javaClass.simpleName}: ${it.message}" }.orEmpty()
+        return "${error.javaClass.simpleName}: ${error.message}$cause".take(240)
     }
 
     fun cancelJob(workId: String) = services.scheduler.cancel(workId)
