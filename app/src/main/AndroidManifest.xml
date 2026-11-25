@@ -93,9 +93,11 @@
         </provider>
 
         <!--
-          WorkManager self-initialises through its own provider, so no Configuration.Provider
-          and no foreground-service declaration is needed here: WorkManager ships
-          SystemForegroundService, which we drive through setForeground(ForegroundInfo(...)).
+          WorkManager self-initialises through its own provider, so no Configuration.Provider is
+          needed here. It ships SystemForegroundService without any foregroundServiceType, and on
+          API 34+ the system insists on a type: this merge is what makes the service legal at all.
+          It is not enough by itself — DownloadWorker also passes FOREGROUND_SERVICE_TYPE_DATA_SYNC
+          into ForegroundInfo, because WorkManager takes the type from there, not from the manifest.
         -->
         <service
             android:name="androidx.work.impl.foreground.SystemForegroundService"

@@ -1,6 +1,7 @@
 package dev.hamza.localtube.download
 
 import android.content.Context
+import android.content.pm.ServiceInfo
 import androidx.work.CoroutineWorker
 import androidx.work.Data
 import androidx.work.ForegroundInfo
@@ -113,7 +114,15 @@ class DownloadWorker(
 
     private suspend fun postForeground(args: DownloadArgs, percent: Float, speed: String?, etaSeconds: Long) {
         val notification = buildProgress(args, percent, speed, etaSeconds)
-        runCatching { setForeground(ForegroundInfo(progressNotificationId, notification)) }
+        // API 34+ takes the type from the ForegroundInfo, not the manifest. Left at the 2-argument
+        // constructor WorkManager calls startForeground(id, notification, 0), and Android 15 kills
+        // the service with "Starting FGS with type none ... has been prohibited".
+        val info = ForegroundInfo(
+            progressNotificationId,
+            notification,
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC,
+        )
+        runCatching { setForeground(info) }
             .onFailure { Notifier.push(applicationContext, progressNotificationId, notification) }
     }
 
