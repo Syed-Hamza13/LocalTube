@@ -2,6 +2,7 @@ package dev.hamza.localtube
 
 import android.app.Application
 import dev.hamza.localtube.di.ServiceLocator
+import dev.hamza.localtube.util.CrashReporter
 import dev.hamza.localtube.util.Notifier
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -16,6 +17,7 @@ class LocalTubeApp : Application() {
     override fun onCreate() {
         super.onCreate()
         instance = this
+        CrashReporter.install(this)
         Notifier.ensureChannels(this)
         services = ServiceLocator(this)
 

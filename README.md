@@ -9,12 +9,11 @@ Jetpack Compose (Material 3), MVVM, Room, WorkManager and
 `io.github.junkfood02.youtubedl-android` fork of yausername's library).
 
 **Status:** CI builds every push, both variants, debug and release, all green — release APKs measure
-**54.05 MB** (full) and **20.04 MB** (slim), and each build now asserts that the yt-dlp bundle, the
-Python runtime and (for `full`) FFmpeg are still inside the APK after R8. First real install on the
-target phone gets through the whole UI. `YoutubeDL.init()` failed there; the on-screen cause chain
-pinned it to R8 stripping the `ZipExtraField` classes that `commons-compress` instantiates by
-reflection from a static initialiser (so Python never unpacked), and those classes are now kept —
-engine startup after that fix is the open item.
+**54.08 MB** (full) and **20.08 MB** (slim), and each build now asserts that the yt-dlp bundle, the
+Python runtime and (for `full`) FFmpeg are still inside the APK after R8. On the target phone the
+engine now starts and `Fetch options` returns real formats, so the commons-compress keep rule fixed
+`init()`; the open item is what happens once a download is queued, and the app now keeps its own last
+crash trace (Settings → Last crash) because a phone with no PC attached has no logcat.
 
 ---
 

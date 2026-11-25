@@ -12,6 +12,7 @@ import dev.hamza.localtube.domain.DownloadMode
 import dev.hamza.localtube.domain.Quality
 import dev.hamza.localtube.domain.StorageMode
 import dev.hamza.localtube.domain.ThemeMode
+import dev.hamza.localtube.util.CrashReporter
 import dev.hamza.localtube.util.services
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -29,6 +30,7 @@ data class SettingsUiState(
     val engineInfo: String? = null,
     val engineChecking: Boolean = false,
     val message: String? = null,
+    val crash: String? = null,
 )
 
 class SettingsViewModel(private val services: ServiceLocator) : ViewModel() {
@@ -45,11 +47,23 @@ class SettingsViewModel(private val services: ServiceLocator) : ViewModel() {
 
     init {
         refreshUsage()
+        refreshCrash()
     }
 
     fun refreshUsage() = viewModelScope.launch {
         val bytes = services.storage.appMediaBytes()
         _state.update { it.copy(appBytes = bytes) }
+    }
+
+    /** The trace of the last crash, so a phone with no PC attached can still report one. */
+    fun refreshCrash() = viewModelScope.launch {
+        val report = withContext(Dispatchers.IO) { CrashReporter.read(services.appContext) }
+        _state.update { it.copy(crash = report) }
+    }
+
+    fun clearCrash() = viewModelScope.launch {
+        withContext(Dispatchers.IO) { CrashReporter.clear(services.appContext) }
+        _state.update { it.copy(crash = null) }
     }
 
     fun setTheme(mode: ThemeMode) = viewModelScope.launch { services.prefs.setThemeMode(mode) }

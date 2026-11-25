@@ -17,7 +17,7 @@ import dev.hamza.localtube.engine.YtDlpEngine
  */
 class ServiceLocator(context: Context) {
 
-    private val appContext = context.applicationContext
+    val appContext = context.applicationContext
 
     val prefs: AppPrefs = AppPrefs(appContext)
 
