@@ -255,8 +255,12 @@ class YtDlpEngine(
             " free=${if (freeMb < 0) "?" else "${freeMb / BYTES_PER_MB}MB"}"
     }
 
-    private fun sizeOf(file: File): String =
-        if (file.isFile) "${file.length() / BYTES_PER_MB}MB" else "absent"
+    /** Sub-MB payloads (the loader stub is a few KB) must not render as `0MB`, which reads as absent. */
+    private fun sizeOf(file: File): String {
+        if (!file.isFile) return "absent"
+        val bytes = file.length()
+        return if (bytes < BYTES_PER_MB) "${bytes / BYTES_PER_KB}KB" else "${bytes / BYTES_PER_MB}MB"
+    }
 
     /** [java.io.InputStream.copyTo] has no ceiling; a rogue response must not fill the cache. */
     private fun InputStream.copyUpTo(out: OutputStream, maxBytes: Long): Long {
@@ -278,6 +282,7 @@ class YtDlpEngine(
         const val MAX_THUMBNAIL_BYTES = 3L * 1024 * 1024
         const val MAX_CAUSE_DEPTH = 4
         const val BYTES_PER_MB = 1024L * 1024L
+        const val BYTES_PER_KB = 1024L
         val SPEED_REGEX = Regex("at\\s+([0-9.,]+\\s*[KMGT]?i?B/s)")
     }
 }
