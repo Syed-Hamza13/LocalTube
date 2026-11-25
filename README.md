@@ -9,11 +9,14 @@ Jetpack Compose (Material 3), MVVM, Room, WorkManager and
 `io.github.junkfood02.youtubedl-android` fork of yausername's library).
 
 **Status:** CI builds every push, both variants, debug and release, all green — release APKs measure
-**54.08 MB** (full) and **20.08 MB** (slim), and each build now asserts that the yt-dlp bundle, the
+**54.11 MB** (full) and **20.10 MB** (slim), and each build now asserts that the yt-dlp bundle, the
 Python runtime and (for `full`) FFmpeg are still inside the APK after R8. On the target phone the
-engine now starts and `Fetch options` returns real formats, so the commons-compress keep rule fixed
-`init()`; the open item is what happens once a download is queued, and the app now keeps its own last
-crash trace (Settings → Last crash) because a phone with no PC attached has no logcat.
+engine starts and `Fetch options` returns real formats, so the commons-compress keep rule fixed
+`init()`, and the `ForegroundInfo` service-type fix stopped the crash on queueing. Downloads are the
+open item: the app now shows the last `ERROR:` line from yt-dlp rather than the version nag that used
+to hide it, ships its own yt-dlp **2026.11.23** bundle (the AAR's was 2025.11.12), and treats a failed
+FFmpeg start as a real signal instead of swallowing it. Settings → Last crash stays the fallback for a
+phone with no PC attached, because there is no logcat.
 
 ---
 
@@ -193,8 +196,16 @@ source tree instead of two product flavours.
   `SystemForegroundService` plus `FOREGROUND_SERVICE_TYPE_DATA_SYNC` inside `ForegroundInfo` is what
   lets a download run at all, because WorkManager takes the service type from `ForegroundInfo` and
   Android 15 kills a `type none` foreground service on arrival.
-* **yt-dlp breaks when YouTube changes.** The engine is pinned inside the AAR; when a site change
-  breaks downloads, update `ytdlp = "…"` in `gradle/libs.versions.toml` and rebuild.
+* **The yt-dlp bundle is ours, not the AAR's.** `app/src/main/res/raw/ytdlp` (the zipimport from a
+  yt-dlp release) overrides the library's copy, because an app module's resource wins the merge.
+  `YoutubeDL.init_ytdlp` extracts `R.raw.ytdlp` **only when the file is absent**, so replacing the
+  bundle also means bumping `SHIPPED_YTDLP_VERSION` and `SHIPPED_YTDLP_BYTES` in `YtDlpEngine`:
+  `ensureReady()` deletes the extracted copy when the version changes, and
+  `.github/scripts/check-apk-payload.sh` fails the build when the constant and the file drift apart.
+* **When YouTube changes and downloads break, replace the bundle file** — bumping `ytdlp` in
+  `gradle/libs.versions.toml` now only moves Python and the library around it, since our `res/raw`
+  copy shadows the AAR's extractor. The interpreter inside the AAR is CPython 3.12, so the bundle has
+  to support it (yt-dlp 2026.x asks for ≥3.11, which 3.12 satisfies).
 * **No playlist *URL* import** — playlists here are local collections you build yourself; a shared
   YouTube playlist link downloads the single video you pasted (`--no-playlist`).
 * Audio-only files are not "background audio" — play them in the player or export them to Music.

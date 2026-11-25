@@ -43,6 +43,9 @@ class SettingsViewModel(private val services: ServiceLocator) : ViewModel() {
 
     val hasFfmpeg: Boolean get() = services.engine.hasFfmpeg
 
+    /** Non-null only in a full build where FFmpeg failed to start; explains the degraded formats. */
+    val ffmpegNote: String? get() = services.engine.ffmpegNote
+
     val appVersion: String get() = BuildConfig.VERSION_NAME
 
     init {

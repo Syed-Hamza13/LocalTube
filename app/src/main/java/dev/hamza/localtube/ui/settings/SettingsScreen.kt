@@ -250,9 +250,21 @@ fun SettingsScreen(
                             }
                         }
                         Text(
-                            text = if (viewModel.hasFfmpeg) "FFmpeg: bundled" else "FFmpeg: not included",
+                            text = when {
+                                viewModel.hasFfmpeg -> "FFmpeg: bundled"
+                                viewModel.ffmpegNote != null -> "FFmpeg: bundled but not running"
+                                else -> "FFmpeg: not included"
+                            },
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    // A full build that lost FFmpeg still downloads, just without merging or mp3.
+                    viewModel.ffmpegNote?.let { note ->
+                        Text(
+                            text = note,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
                         )
                     }
                 }

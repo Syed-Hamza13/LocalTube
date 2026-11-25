@@ -3,3 +3,7 @@
 *.yml text eol=lf
 *.kts text eol=lf
 *.toml text eol=lf
+
+# The yt-dlp zipimport has a shebang on purpose and binary payload after it; never let git
+# normalise line endings into a corrupt archive.
+app/src/main/res/raw/ytdlp binary

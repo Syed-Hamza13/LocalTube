@@ -50,8 +50,19 @@ class YtDlpEngine(
 ) {
     private val appContext = context.applicationContext
 
-    /** False in `-Pslim` builds, where merging and mp3 encoding are unavailable. */
-    val hasFfmpeg: Boolean = BuildConfig.WITH_FFMPEG
+    /**
+     * False in `-Pslim` builds, and also flipped to false in a full build whose FFmpeg payload
+     * refuses to unpack: [FormatSpec] can plan around a missing merge step, but only if it is told
+     * the truth instead of being handed a build flag.
+     */
+    @Volatile
+    var hasFfmpeg: Boolean = BuildConfig.WITH_FFMPEG
+        private set
+
+    /** Why FFmpeg was dropped at runtime, for Settings. Null when working or never expected. */
+    @Volatile
+    var ffmpegNote: String? = null
+        private set
 
     @Volatile
     private var ready = false
@@ -59,10 +70,9 @@ class YtDlpEngine(
     suspend fun ensureReady() = withContext(Dispatchers.IO) {
         if (ready) return@withContext
         try {
+            refreshBundleIfStale()
             YoutubeDL.getInstance().init(appContext)
-            if (hasFfmpeg) {
-                runCatching { initFfmpeg(appContext) }
-            }
+            if (hasFfmpeg) initFfmpegQuietly()
             ready = true
         } catch (cancelled: CancellationException) {
             throw cancelled
@@ -71,6 +81,37 @@ class YtDlpEngine(
                 "Could not start the yt-dlp engine: ${causeChain(t)} | ${diskState()}",
                 t,
             )
+        }
+    }
+
+    /**
+     * `YoutubeDL.init()` copies `R.raw.ytdlp` only when the extracted file is missing, so an app
+     * installed months ago keeps its first bundle forever. Deleting it on a version bump makes the
+     * next `init()` unpack the one shipped in this APK — with YouTube, a stale extractor is a dead
+     * download rather than a cosmetic gap. If the delete fails the preference stays old, so the next
+     * launch retries.
+     */
+    private fun refreshBundleIfStale() {
+        val prefs = appContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        if (prefs.getString(KEY_BUNDLE_VERSION, null) == SHIPPED_YTDLP_VERSION) return
+        val bundleDir = File(
+            File(appContext.noBackupFilesDir, YoutubeDL.baseName),
+            YoutubeDL.ytdlpDirName,
+        )
+        bundleDir.deleteRecursively()
+        if (!File(bundleDir, YoutubeDL.ytdlpBin).exists()) {
+            prefs.edit().putString(KEY_BUNDLE_VERSION, SHIPPED_YTDLP_VERSION).apply()
+        }
+    }
+
+    private fun initFfmpegQuietly() {
+        try {
+            initFfmpeg(appContext)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (t: Throwable) {
+            hasFfmpeg = false
+            ffmpegNote = "FFmpeg failed to start, so downloads skip merging and re-encoding: ${causeChain(t)}"
         }
     }
 
@@ -208,12 +249,20 @@ class YtDlpEngine(
     private fun parseSpeed(line: String?): String? =
         line?.let { SPEED_REGEX.find(it)?.groupValues?.get(1)?.trim() }
 
+    /**
+     * A failed yt-dlp run prints the version-nag WARNING before the ERROR that actually ended the
+     * job, and the whole output arrives as one message. Joining and truncating it showed only the
+     * nag on the phone, so read the last ERROR line and fall back to the last content line.
+     */
     private fun humanize(error: Throwable): String {
-        val raw = (error.message ?: error.cause?.message ?: "Unknown error")
+        val lines = (error.message ?: error.cause?.message ?: "Unknown error")
             .lineSequence()
             .map { it.trim() }
             .filter { it.isNotEmpty() && !it.startsWith("[debug]") }
-            .joinToString(" ")
+            .toList()
+        val raw = lines.lastOrNull { it.startsWith("ERROR:") }
+            ?: lines.lastOrNull { !it.startsWith("WARNING:") && !it.startsWith("[info]") }
+            ?: "Unknown error"
         val friendly = when {
             raw.contains("Sign in to confirm", true) -> "Age or bot check: this video needs sign-in, which this app does not do."
             raw.contains("Video unavailable", true) -> "Video unavailable."
@@ -221,6 +270,12 @@ class YtDlpEngine(
             raw.contains("getaddrinfo failed", true) || raw.contains("Network is unreachable", true) ->
                 "No internet connection."
             raw.contains("Unsupported URL", true) -> "yt-dlp does not support this link yet."
+            raw.contains("Requested format is not available", true) ->
+                "That format is not offered for this video. Try another quality."
+            raw.contains("HTTP Error 403", true) ->
+                "YouTube refused the file link (403). Retry, or pick a lower quality."
+            raw.contains("No space left", true) || raw.contains("not enough space", true) ->
+                "Storage is full."
             else -> raw
         }
         return friendly.take(280)
@@ -249,9 +304,14 @@ class YtDlpEngine(
      */
     private fun diskState(): String {
         val libDir = File(appContext.applicationInfo.nativeLibraryDir ?: "")
+        val bundle = File(
+            File(File(appContext.noBackupFilesDir, YoutubeDL.baseName), YoutubeDL.ytdlpDirName),
+            YoutubeDL.ytdlpBin,
+        )
         val freeMb = appContext.noBackupFilesDir?.usableSpace ?: -1L
         return "libs=${libDir.absolutePath} python=${sizeOf(File(libDir, "libpython.zip.so"))}" +
             " stub=${sizeOf(File(libDir, "libpython.so"))}" +
+            " bundle=${if (bundle.isFile) bundle.length() else "absent"}/want=$SHIPPED_YTDLP_BYTES" +
             " free=${if (freeMb < 0) "?" else "${freeMb / BYTES_PER_MB}MB"}"
     }
 
@@ -283,6 +343,17 @@ class YtDlpEngine(
         const val MAX_CAUSE_DEPTH = 4
         const val BYTES_PER_MB = 1024L * 1024L
         const val BYTES_PER_KB = 1024L
+
+        /**
+         * The extractor bundle shipped in `app/src/main/res/raw/ytdlp`, which runs on the CPython
+         * 3.12 the AAR provides. [SHIPPED_YTDLP_BYTES] is that file's exact length, so a mismatched
+         * pair surfaces in the startup banner as `bundle=<n>/want=<m>` instead of silently.
+         * CI fails if the version here and inside the bundle ever drift.
+         */
+        const val SHIPPED_YTDLP_VERSION = "2026.11.23"
+        const val SHIPPED_YTDLP_BYTES = 3_073_120L
+        const val PREFS = "engine"
+        const val KEY_BUNDLE_VERSION = "ytdlp_bundle_version"
         val SPEED_REGEX = Regex("at\\s+([0-9.,]+\\s*[KMGT]?i?B/s)")
     }
 }
