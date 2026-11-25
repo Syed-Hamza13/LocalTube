@@ -202,6 +202,15 @@ source tree instead of two product flavours.
   bundle also means bumping `SHIPPED_YTDLP_VERSION` and `SHIPPED_YTDLP_BYTES` in `YtDlpEngine`:
   `ensureReady()` deletes the extracted copy when the version changes, and
   `.github/scripts/check-apk-payload.sh` fails the build when the constant and the file drift apart.
+* **One condition per `[...]` in a format selector.** `_parse_filter` in `yt_dlp/YoutubeDL.py` joins
+  everything inside one bracket with `''.join`, so `bestvideo[height<=?1080,ext=mp4]` reaches
+  `_build_format_filter` as a single spec and raises `SyntaxError: Invalid filter specification` —
+  the job dies before it fetches a byte. Chain the brackets instead, and check a plan with
+  `YoutubeDL({'quiet': True}).build_format_selector(sel)`, which validates grammar without network.
+* **Error text is a feature.** `humanize()` reports the last `ERROR:` line of a failed run rather
+  than joining the whole output, because yt-dlp's version nag arrives first and used to hide the
+  reason a job died at 0%. A failed FFmpeg start now flips `hasFfmpeg` to false so `FormatSpec`
+  degrades to plans that need no merge, instead of promising a merge that cannot happen.
 * **When YouTube changes and downloads break, replace the bundle file** — bumping `ytdlp` in
   `gradle/libs.versions.toml` now only moves Python and the library around it, since our `res/raw`
   copy shadows the AAR's extractor. The interpreter inside the AAR is CPython 3.12, so the bundle has

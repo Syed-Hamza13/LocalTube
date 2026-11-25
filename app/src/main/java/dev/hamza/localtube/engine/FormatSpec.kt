@@ -21,6 +21,11 @@ data class FormatPlan(
  */
 object FormatSpec {
 
+    /**
+     * One condition per bracket: yt-dlp parses `bestvideo[height<=?1080][ext=mp4]`, while
+     * `bestvideo[height<=?1080,ext=mp4]` raises `SyntaxError: Invalid filter specification` and kills
+     * the job before a byte is fetched. `&&` is rejected too.
+     */
     private fun height(n: Int) = "height<=?$n"
 
     fun plan(mode: DownloadMode, quality: Quality, audioExt: AudioExt, hasFfmpeg: Boolean): FormatPlan {
@@ -30,7 +35,7 @@ object FormatSpec {
                 FormatPlan(
                     formatSelector = sequenceOf(
                         if (h == null) "bestvideo[ext=mp4]+bestaudio[ext=m4a]"
-                        else "bestvideo[${height(h)},ext=mp4]+bestaudio[ext=m4a]",
+                        else "bestvideo[${height(h)}][ext=mp4]+bestaudio[ext=m4a]",
                         if (h == null) "bestvideo+bestaudio"
                         else "bestvideo[${height(h)}]+bestaudio",
                         if (h == null) null else "best[${height(h)}]",
@@ -43,9 +48,9 @@ object FormatSpec {
                 FormatPlan(
                     formatSelector = sequenceOf(
                         if (h == null) "best[acodec!=none][ext=mp4]"
-                        else "best[${height(h)},acodec!=none,ext=mp4]",
+                        else "best[${height(h)}][acodec!=none][ext=mp4]",
                         if (h == null) "best[acodec!=none]"
-                        else "best[${height(h)},acodec!=none]",
+                        else "best[${height(h)}][acodec!=none]",
                         "best",
                     ).joinToString("/"),
                     extraOptions = emptyList(),
@@ -74,7 +79,7 @@ object FormatSpec {
 
             DownloadMode.VIDEO_ONLY -> FormatPlan(
                 formatSelector = sequenceOf(
-                    if (h == null) "bestvideo[ext=mp4]" else "bestvideo[${height(h)},ext=mp4]",
+                    if (h == null) "bestvideo[ext=mp4]" else "bestvideo[${height(h)}][ext=mp4]",
                     if (h == null) "bestvideo" else "bestvideo[${height(h)}]",
                     // Sites that serve no separate video stream still need to produce something.
                     if (h == null) "best[ext=mp4]" else "best[${height(h)}]",
